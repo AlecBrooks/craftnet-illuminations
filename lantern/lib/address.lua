@@ -62,4 +62,22 @@ function address.format(target)
 end
 
 
+-- Resolves a link target against the page it appeared on. Absolute
+-- targets (an explicit host) pass through unchanged; relative targets
+-- (target.relative == true, just a path) inherit base's address and
+-- port -- so a page never has to hardcode its own address to link to
+-- itself, and moving a site to a new domain doesn't break its links.
+function address.resolve(base, target)
+    if not target.relative then
+        return target
+    end
+
+    return {
+        address = base.address,
+        port = base.port,
+        path = target.path,
+    }
+end
+
+
 return address

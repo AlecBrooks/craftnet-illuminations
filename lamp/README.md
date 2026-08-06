@@ -10,12 +10,16 @@ The web server. Runs as a CraftNet Host, using only CraftNet's public `lib/cnet.
 
 ## Running
 
+Connect the computer to a gateway first, same as any CraftNet Host (`cnet connect <gatewayId> <subdomain>` — once, it's remembered after that). Then:
+
 ```
-lamp <gatewayId> <subdomain> [port] [siteDirectory]
+lamp [port] [siteDirectory]
 ```
 
-`port` defaults to 80, `siteDirectory` defaults to `site/` next to `lamp.lua`.
+`port` defaults to 80, `siteDirectory` defaults to `site/` next to `lamp.lua`. Lamp doesn't take a gatewayId/subdomain of its own — it reads the connection the Host already has via `cnet.status()`, rather than duplicating what `cnet connect` already set up. (Calling `cnet.connect()` again always does a full reconnect handshake, even if you're already connected, so Lamp deliberately never calls it.)
 
 ## Status
 
-Serving logic is written and unit-tested against a CC:Tweaked stub harness (path resolution, 404 handling, the full connect/listen/serve loop). Not yet run against a real CC:Tweaked computer — the one thing that couldn't be verified this way is whether `package.path` manipulation actually reaches across from `/lamp` into `/craftnet`'s own nested `require()` calls the way it's assumed to here. Worth a real-game smoke test before trusting this further.
+Confirmed working in a real game session (2026-08-06): installed via `bootstrap.lua`, connected, and served its sample site to Lantern. Two real things surfaced by that test and since fixed: it used to require re-typing `<gatewayId> <subdomain>` even though the Host was already connected (see above), and `site/index.lcm`'s link to `about.lcm` used to hardcode a placeholder domain (`mythra.craftnet.craft`) that didn't match wherever the site actually got deployed — now a relative link (`@link /about.lcm ...`, see [lcm/SPEC.md](../lcm/SPEC.md)) that resolves against whatever address the site is actually served from.
+
+Serving logic is unit-tested against a CC:Tweaked stub harness (path resolution, 404 handling, the full status/listen/serve loop).

@@ -40,7 +40,7 @@ local PROGRAMS = {
         sourceDirectory = "lamp",
         installDirectory = "/lamp",
         entryPoint = "lamp.lua",
-        usage = "lamp <gatewayId> <subdomain> [port] [siteDirectory]",
+        usage = "lamp [port] [siteDirectory]",
     },
 
     lantern = {
@@ -48,7 +48,7 @@ local PROGRAMS = {
         sourceDirectory = "lantern",
         installDirectory = "/lantern",
         entryPoint = "lantern.lua",
-        usage = "lantern <gatewayId> <subdomain> [startAddress]",
+        usage = "lantern [startAddress]",
     },
 }
 
@@ -356,5 +356,8 @@ end
 print("")
 print(tostring(#files) .. " files installed to " .. program.installDirectory .. ".")
 print("")
-print("Run it with:")
+print("Make sure this computer is connected first (\"cnet connect")
+print("<gatewayId> <subdomain>\" -- once, it's remembered after that).")
+print("")
+print("Then run it with:")
 print("  " .. program.usage)

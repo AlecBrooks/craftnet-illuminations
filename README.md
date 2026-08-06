@@ -40,11 +40,11 @@ bootstrap lamp
 
 (or `bootstrap lantern`, or just `bootstrap` to be asked which). It pulls the current `lamp/` or `lantern/` tree straight from GitHub — same self-updating idea as CraftNet's own `bootstrap.lua`, just simpler: it doesn't touch `/startup.lua` or try to auto-launch anything, since a computer running this already has CraftNet's own startup wired up. Re-run `bootstrap lamp`/`bootstrap lantern` any time to pull the latest version; it replaces the previous install atomically.
 
-Once installed, run it directly:
+Connect the computer to a gateway first, same as any CraftNet Host (`cnet connect <gatewayId> <subdomain>` — once, it's remembered after that). Then run either program directly — neither takes a gatewayId/subdomain of its own, they just read the connection the Host already has:
 
 ```
-lamp <gatewayId> <subdomain> [port] [siteDirectory]
-lantern <gatewayId> <subdomain> [startAddress]
+lamp [port] [siteDirectory]
+lantern [startAddress]
 ```
 
 ## Project structure
@@ -62,4 +62,6 @@ LCM has a v0 spec ([lcm/SPEC.md](lcm/SPEC.md)). Lamp and Lantern both have worki
 
 CraftNet's primitives (subdomain addressing, request/response with free-form payloads, and — critically — many independent services sharing the same conventional port across different subdomains on one gateway) were confirmed working end-to-end, including in real gameplay, before this repository was created. That's the whole premise Illuminations is built on.
 
-Lamp serves `.lcm` files from a local directory over `cnet.listen`/`cnet.receive`/`cnet.reply`. Lantern connects, sends `cnet.request()`, parses the LCM response, and renders it in a fixed-width frame with address-bar navigation, link cycling, vertical scroll, and back-history. Both have their pure logic unit-tested against a CC:Tweaked stub harness and cross-checked against each other (Lantern's parser correctly renders Lamp's actual sample site). Neither has been run against a real CC:Tweaked computer yet — that's the next step, not further building ahead of it.
+Lamp serves `.lcm` files from a local directory over `cnet.listen`/`cnet.receive`/`cnet.reply`. Lantern connects, sends `cnet.request()`, parses the LCM response, and renders it in a fixed-width frame with address-bar navigation, link cycling, vertical scroll, and back-history. Both have their pure logic unit-tested against a CC:Tweaked stub harness and cross-checked against each other (Lantern's parser correctly renders Lamp's actual sample site).
+
+Both have now run in a real game session too: installed via `bootstrap.lua`, connected, Lamp served its sample site, Lantern rendered and fetched it. That first real test caught two things worth knowing about — see [lamp/README.md](lamp/README.md) and [lantern/README.md](lantern/README.md) for what they were and how they were fixed (in short: neither program needs a gatewayId/subdomain of its own anymore, and links within a site should be relative, not hardcoded to a specific domain).

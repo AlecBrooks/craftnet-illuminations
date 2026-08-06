@@ -19,23 +19,10 @@ local server = require("lib.server")
 
 local arguments = { ... }
 
-local gatewayId = tonumber(arguments[1])
-local subdomain = arguments[2]
-local port = tonumber(arguments[3]) or 80
-local siteDirectory = arguments[4] or (currentDirectory .. "/site")
+local port = tonumber(arguments[1]) or 80
+local siteDirectory = arguments[2] or (currentDirectory .. "/site")
 
-if not gatewayId or not subdomain then
-    printError("Usage: lamp <gatewayId> <subdomain> [port] [siteDirectory]")
-    return
-end
-
-print(
-    "Lamp starting -- connecting to gateway " .. tostring(gatewayId)
-    .. " as " .. tostring(subdomain) .. " ..."
-)
-
-local started, startError =
-    server.run(cnet, gatewayId, subdomain, port, siteDirectory)
+local started, startError = server.run(cnet, port, siteDirectory)
 
 if not started then
     printError(tostring(startError))

@@ -6,27 +6,28 @@ The browser. Runs as a CraftNet Host, using only CraftNet's public `lib/cnet.lua
 
 ## Layout
 
-- `lantern.lua` — entry point. Same `package.path` widening trick as Lamp, to reach an installed CraftNet Host's `lib/cnet.lua` at `/craftnet` and its own `lib/`. Parses arguments, connects, wires the event loop.
-- `lib/address.lua` — parses/formats `host[:port][/path]` address strings. Pure logic, unit tested.
+- `lantern.lua` — entry point. Same `package.path` widening trick as Lamp, to reach an installed CraftNet Host's `lib/cnet.lua` at `/craftnet` and its own `lib/`. Reads the Host's existing connection via `cnet.status()`, wires the event loop.
+- `lib/address.lua` — parses/formats `host[:port][/path]` address strings, and resolves relative link targets (`address.resolve`) against whatever page they appeared on. Pure logic, unit tested.
 - `lib/parser.lua` — turns LCM source text into `{ title, lines }`, where each line is `text`/`link`/`box`/`hr`. Pure logic, unit tested.
-- `lib/view.lua` — browsing state: current page, horizontal scroll offset, which link is selected, a back-history stack. Pure logic, unit tested.
+- `lib/view.lua` — browsing state: current page, vertical scroll offset, which link is selected, a back-history stack. Pure logic, unit tested.
 - `lib/ui.lua` — draws the chrome (header, address bar, frame, content, status/hint rows) via `term`/`colors`, in the visual style of the Gateway's own dashboard (`craftnet/src/lib/ui.lua`: magenta header, white-on-blue frame). CC:Tweaked-dependent, not unit tested — see below.
 
 ## Running
 
+Connect the computer to a gateway first, same as any CraftNet Host (`cnet connect <gatewayId> <subdomain>` — once, it's remembered after that). Then:
+
 ```
-lantern <gatewayId> <subdomain> [startAddress]
+lantern [startAddress]
 ```
 
-`startAddress` is optional — an initial page to load on launch (e.g. `mythra.craftnet.craft/index.lcm`).
+`startAddress` is optional — an initial page to load on launch (e.g. `illuminations.cnet.craft`). Lantern doesn't take a gatewayId/subdomain of its own, same reasoning as Lamp (see its README) — it reads the connection the Host already has instead of asking you to repeat it.
 
 Keys: `a` to type an address, `tab` to cycle between links on the page (auto-scrolling to keep the selected one visible), `enter` to follow the selected link, `up`/`down` to scroll vertically, `backspace` to go back, `Ctrl+T` to quit.
 
 ## Status
 
-`lib/address.lua`, `lib/parser.lua`, and `lib/view.lua` are unit-tested against a CC:Tweaked stub harness (checks covering address parsing/formatting, every LCM directive, link cycling/wrapping with auto-scroll, vertical scroll clamping, back-history) and confirmed against Lamp's real sample site (`lamp/site/index.lcm`) end to end.
+Confirmed working in a real game session (2026-08-06): installed via `bootstrap.lua`, rendered the chrome correctly (frame, header, address bar), and successfully fetched and rendered Lamp's real sample site. Two things that surfaced in that same test and have since been fixed: it used to require re-typing `<gatewayId> <subdomain>` even though the Host was already connected, and following a link failed with a stale hardcoded address because the sample site didn't use a relative link (see Lamp's README and [lcm/SPEC.md](../lcm/SPEC.md)). Also added a one-space margin around the content area — text was rendering flush against the frame's top and right edges.
 
-`lib/ui.lua` and the `lantern.lua` event loop are not — they're direct `term`/`keys`/`read()` calls that need a real CC:Tweaked computer to verify. Same open question as Lamp's `package.path` trick, plus two Lantern-specific ones worth a first in-game pass:
+`lib/address.lua`, `lib/parser.lua`, and `lib/view.lua` are unit-tested against a CC:Tweaked stub harness (checks covering address parsing/formatting/relative-resolution, every LCM directive, link cycling/wrapping with auto-scroll, vertical scroll clamping, back-history) and confirmed against Lamp's real sample site (`lamp/site/index.lcm`) end to end.
 
-- Whether `read(nil, nil, nil, default)` (prefilling the address bar with the current address) behaves as expected in this CC:Tweaked version — the 4-argument form is a newer addition to `read()`.
-- Whether the frame/content layout math actually looks right at real terminal sizes — it's only been reasoned about, never rendered.
+`lib/ui.lua` and the `lantern.lua` event loop are direct `term`/`keys`/`read()` calls, not unit tested — but now confirmed to actually render and navigate correctly on a real computer, not just reasoned about. Still open: whether `read(nil, nil, nil, default)`'s prefill behavior is exactly as intended (not yet specifically confirmed in-game).

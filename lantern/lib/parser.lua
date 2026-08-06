@@ -44,7 +44,7 @@ end
 -- Each line is one of:
 --   { kind = "text", text = string, fg = string, bg = string }
 --   { kind = "link", text = string, fg = string, bg = string,
---     target = { address, port, path } }
+--     target = { address, port, path } or { relative = true, path } }
 --   { kind = "box", color = string, width = number }
 --   { kind = "hr", color = string }
 -- Unrecognized "@" directives are silently skipped, per the v0 spec,
@@ -75,7 +75,17 @@ function parser.parse(source)
                 local targetToken, linkText =
                     argumentText:match("^(%S+)%s*(.-)$")
 
-                local target = targetToken and address.parse(targetToken)
+                local target = nil
+
+                if targetToken and targetToken:sub(1, 1) == "/" then
+                    -- A path with no host -- resolved against
+                    -- whatever page it appears on, so a site never
+                    -- has to hardcode its own address to link to
+                    -- itself.
+                    target = { relative = true, path = targetToken }
+                elseif targetToken then
+                    target = address.parse(targetToken)
+                end
 
                 if target then
                     page.lines[#page.lines + 1] = {

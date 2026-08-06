@@ -8,7 +8,7 @@ no special support was added to CraftNet to make this work, just the
 same request/response primitives any program can use.
 
 @color yellow
-@link mythra.craftnet.craft:80/about.lcm About this site
+@link /about.lcm About this site
 
 @color white
 @hr

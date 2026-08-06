@@ -18,8 +18,11 @@ Sets the color for every content line that follows, until the next `@color`. Nam
 
 ```text
 @link <address>:<port>/<path> <link text>
+@link /<path> <link text>
 ```
 Renders `<link text>` as a distinct, navigable line. Selecting it in Lantern issues a new request to `<address>` on `<port>` for `<path>`.
+
+The second form — just a path, starting with `/` — is relative: it targets the same address and port as the page it's on. Use it to link within a site so the file never has to hardcode its own address; a link written as `@link /about.lcm About this site` keeps working no matter what domain the site ends up served from.
 
 ```text
 @box <color> <width> <height>
@@ -52,7 +55,7 @@ no special support was added to CraftNet to make this work, just the
 same request/response primitives any program can use.
 
 @color yellow
-@link mythra.craftnet.craft:80/about.lcm About this site
+@link /about.lcm About this site
 
 @color white
 @hr

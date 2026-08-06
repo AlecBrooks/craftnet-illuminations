@@ -16,10 +16,12 @@ function ui.getLocalEnv()
     frameX1, frameY1 = 2, 3
     frameX2, frameY2 = width - 1, height - 2
 
+    -- One-space margin between the frame border and the content
+    -- itself on every side, so text never sits flush against it.
     contentX1 = frameX1 + 2
-    contentX2 = frameX2 - 1
-    contentY1 = frameY1 + 1
-    contentY2 = frameY2 - 1
+    contentX2 = frameX2 - 2
+    contentY1 = frameY1 + 2
+    contentY2 = frameY2 - 2
 end
 
 

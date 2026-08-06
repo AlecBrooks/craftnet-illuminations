@@ -22,14 +22,7 @@ local ui = require("lib.ui")
 
 local arguments = { ... }
 
-local gatewayId = tonumber(arguments[1])
-local subdomain = arguments[2]
-local startAddressText = arguments[3]
-
-if not gatewayId or not subdomain then
-    printError("Usage: lantern <gatewayId> <subdomain> [startAddress]")
-    return
-end
+local startAddressText = arguments[1]
 
 local browsing = view.new()
 local currentTarget = nil
@@ -115,15 +108,18 @@ local function promptForAddress()
 end
 
 
-print(
-    "Lantern starting -- connecting to gateway " .. tostring(gatewayId)
-    .. " as " .. tostring(subdomain) .. " ..."
-)
+local statusOk, status = cnet.status()
 
-local connected, connectResult = cnet.connect(gatewayId, subdomain)
+if not statusOk then
+    printError(tostring(status))
+    return
+end
 
-if not connected then
-    printError(tostring(connectResult))
+if not status.connected then
+    printError(
+        "Not connected to a gateway. Run "
+        .. "\"cnet connect <gatewayId> <subdomain>\" first."
+    )
     return
 end
 
@@ -154,8 +150,8 @@ while true do
     elseif param == keys.enter then
         local target = view.selectedTarget(browsing)
 
-        if target then
-            loadTarget(target, true)
+        if target and currentTarget then
+            loadTarget(address.resolve(currentTarget, target), true)
         end
 
     elseif param == keys.up then

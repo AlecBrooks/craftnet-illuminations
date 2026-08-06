@@ -62,17 +62,25 @@ function server.handleRequest(cnet, siteDirectory, packet)
 end
 
 
--- Connects, starts listening, and serves forever. Broken out from
+-- Serves forever on an already-connected Host. Broken out from
 -- lamp.lua so command-line parsing stays in the entry point and this
--- can be driven by tests instead.
-function server.run(cnet, gatewayId, subdomain, port, siteDirectory)
-    local connected, connectResult = cnet.connect(gatewayId, subdomain)
+-- can be driven by tests instead. Doesn't call cnet.connect itself --
+-- that always does a full reconnect handshake even if you're already
+-- connected, so Lamp just reads the connection the Host already has
+-- (via "cnet connect", set up once, same as any other CraftNet Host)
+-- instead of asking for a gatewayId/subdomain of its own.
+function server.run(cnet, port, siteDirectory)
+    local statusOk, status = cnet.status()
 
-    if not connected then
-        return false, connectResult
+    if not statusOk then
+        return false, status
     end
 
-    print(tostring(connectResult))
+    if not status.connected then
+        return false,
+            "Not connected to a gateway. Run "
+            .. "\"cnet connect <gatewayId> <subdomain>\" first."
+    end
 
     local listened, listenError = cnet.listen(port)
 
@@ -83,6 +91,7 @@ function server.run(cnet, gatewayId, subdomain, port, siteDirectory)
     print(
         "Lamp serving " .. siteDirectory
         .. " on port " .. tostring(port)
+        .. " as " .. tostring(status.publicAddress)
         .. ". Ctrl+T to stop."
     )
 
