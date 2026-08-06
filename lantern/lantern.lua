@@ -40,6 +40,13 @@ local function redraw()
 end
 
 
+-- cnet.request()'s own default timeout is only 5 seconds -- fine for
+-- a same-gateway request, tight for one that has to cross the relay
+-- (two extra network hops on top of the local Rednet ones). Lantern
+-- already shows a "Loading..." status for the whole wait, so there's
+-- no UX cost to giving it more room.
+local REQUEST_TIMEOUT_SECONDS = 20
+
 local function loadTarget(target, recordCurrentInHistory)
     if recordCurrentInHistory and currentTarget then
         view.pushHistory(browsing, currentTarget)
@@ -50,7 +57,12 @@ local function loadTarget(target, recordCurrentInHistory)
     redraw()
 
     local packet, requestError =
-        cnet.request(target.address, target.port, target.path)
+        cnet.request(
+            target.address,
+            target.port,
+            target.path,
+            REQUEST_TIMEOUT_SECONDS
+        )
 
     if not packet then
         statusText =
