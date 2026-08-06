@@ -29,6 +29,24 @@ Everything above the arrows is CraftNet: addressing (a Lamp instance is just a C
 - A working CraftNet installation — see [AlecBrooks/craftnet](https://github.com/AlecBrooks/craftnet). Lamp runs as a CraftNet Host; Lantern runs as a CraftNet Host too (it only ever *sends* requests, same as any other client).
 - Nothing else. No CraftNet source changes, no forked dependency, no vendored copy of `cnet` — Illuminations depends on CraftNet the same way any third-party program would.
 
+## Installing
+
+On a CC:Tweaked computer that already has CraftNet's Host role installed and running:
+
+```
+wget https://raw.githubusercontent.com/AlecBrooks/craftnet-illuminations/main/bootstrap.lua bootstrap.lua
+bootstrap lamp
+```
+
+(or `bootstrap lantern`, or just `bootstrap` to be asked which). It pulls the current `lamp/` or `lantern/` tree straight from GitHub — same self-updating idea as CraftNet's own `bootstrap.lua`, just simpler: it doesn't touch `/startup.lua` or try to auto-launch anything, since a computer running this already has CraftNet's own startup wired up. Re-run `bootstrap lamp`/`bootstrap lantern` any time to pull the latest version; it replaces the previous install atomically.
+
+Once installed, run it directly:
+
+```
+lamp <gatewayId> <subdomain> [port] [siteDirectory]
+lantern <gatewayId> <subdomain> [startAddress]
+```
+
 ## Project structure
 
 ```text
