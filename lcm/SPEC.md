@@ -2,7 +2,7 @@
 
 An `.lcm` file is plain text. Each line is either a **directive** (starts with `@`) or a **content line** (everything else, rendered as-is).
 
-Lantern does not reflow or wrap content lines — each line in the file becomes exactly one row on screen, at whatever length it is. A line wider than the viewport needs horizontal scrolling to read the rest of it; that's deliberate, and matches how a CC:Tweaked terminal already behaves rather than fighting it.
+Lantern does not reflow or wrap content lines — each line in the file becomes exactly one row on screen. The viewport width is fixed (whatever the computer's terminal reports) and never pans sideways, so a line longer than that is cropped rather than wrapped — keep lines within the target width. Pages can be any length top to bottom; Lantern scrolls vertically to read the rest.
 
 ## Directives
 

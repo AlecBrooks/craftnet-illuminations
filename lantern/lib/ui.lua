@@ -106,14 +106,15 @@ local function drawAddressBar(addressText, editingAddress)
 end
 
 
--- One content row: text/link lines are cropped to the horizontal
--- scroll window; box/hr lines paint a solid run of background color.
-local function drawContentLine(y, line, scrollX, viewportWidth, selected)
+-- One content row: text/link lines are cropped to the fixed viewport
+-- width (never panned); box/hr lines paint a solid run of background
+-- color, also cropped to that width.
+local function drawContentLine(y, line, viewportWidth, selected)
     term.setCursorPos(contentX1, y)
 
     if line.kind == "box" then
         term.setBackgroundColor(resolveColor(line.color))
-        local visible = math.max(0, math.min(line.width - scrollX, viewportWidth))
+        local visible = math.max(0, math.min(line.width, viewportWidth))
         term.write(string.rep(" ", visible))
 
     elseif line.kind == "hr" then
@@ -135,7 +136,7 @@ local function drawContentLine(y, line, scrollX, viewportWidth, selected)
             term.setTextColor(resolveColor(line.fg))
         end
 
-        local visible = text:sub(scrollX + 1, scrollX + viewportWidth)
+        local visible = text:sub(1, viewportWidth)
         term.write(visible)
 
         local padding = viewportWidth - #visible
@@ -154,13 +155,12 @@ local function drawContent(browsing)
 
     for row = 0, viewportHeight - 1 do
         local y = contentY1 + row
-        local line = browsing.lines[row + 1]
+        local lineIndex = browsing.scrollY + row + 1
+        local line = browsing.lines[lineIndex]
 
         if line then
-            local selected =
-                (row + 1) == browsing.selectedLinkIndex
-
-            drawContentLine(y, line, browsing.scrollX, viewportWidth, selected)
+            local selected = lineIndex == browsing.selectedLinkIndex
+            drawContentLine(y, line, viewportWidth, selected)
         else
             term.setCursorPos(contentX1, y)
             term.write(string.rep(" ", viewportWidth))
@@ -189,7 +189,7 @@ local function drawHint()
     term.setCursorPos(2, height)
     term.write(
         "[a] go  [tab] next link  [enter] follow  "
-        .. "[left/right] scroll  [backspace] back  Ctrl+T to quit"
+        .. "[up/down] scroll  [backspace] back  Ctrl+T to quit"
     )
 end
 

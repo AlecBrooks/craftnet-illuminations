@@ -148,7 +148,7 @@ while true do
         promptForAddress()
 
     elseif param == keys.tab then
-        view.selectNextLink(browsing)
+        view.selectNextLink(browsing, ui.contentHeight())
         redraw()
 
     elseif param == keys.enter then
@@ -158,14 +158,12 @@ while true do
             loadTarget(target, true)
         end
 
-    elseif param == keys.left then
-        local step = math.max(1, math.floor(ui.contentWidth() / 2))
-        view.scroll(browsing, -step, ui.contentWidth())
+    elseif param == keys.up then
+        view.scroll(browsing, -1, ui.contentHeight())
         redraw()
 
-    elseif param == keys.right then
-        local step = math.max(1, math.floor(ui.contentWidth() / 2))
-        view.scroll(browsing, step, ui.contentWidth())
+    elseif param == keys.down then
+        view.scroll(browsing, 1, ui.contentHeight())
         redraw()
 
     elseif param == keys.backspace then

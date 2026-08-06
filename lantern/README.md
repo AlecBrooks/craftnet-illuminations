@@ -2,7 +2,7 @@
 
 The browser. Runs as a CraftNet Host, using only CraftNet's public `lib/cnet.lua` developer API — see `craftnet-illuminations/README.md` for the standing rule that this project never touches craftnet's own source.
 
-"Just a frame and interpreter": a fixed-width viewport (whatever `term.getSize()` reports for this computer), no reflow. LCM content is line-based already (see [lcm/SPEC.md](../lcm/SPEC.md)), so a page longer than the viewport is simply not all visible at once for now — no vertical scrolling in v0, only horizontal, per the original design intent. Worth revisiting once real pages start hitting that ceiling; the view module's data model doesn't make that hard to add later.
+"Just a frame and interpreter": a fixed-width viewport (whatever `term.getSize()` reports for this computer), no reflow, no horizontal panning — a line longer than the width is cropped, not scrolled. Pages scroll vertically instead, since LCM content is line-based already (see [lcm/SPEC.md](../lcm/SPEC.md)) and can be any length top to bottom.
 
 ## Layout
 
@@ -20,11 +20,11 @@ lantern <gatewayId> <subdomain> [startAddress]
 
 `startAddress` is optional — an initial page to load on launch (e.g. `mythra.craftnet.craft/index.lcm`).
 
-Keys: `a` to type an address, `tab` to cycle between links on the page, `enter` to follow the selected link, `left`/`right` to scroll horizontally, `backspace` to go back, `Ctrl+T` to quit.
+Keys: `a` to type an address, `tab` to cycle between links on the page (auto-scrolling to keep the selected one visible), `enter` to follow the selected link, `up`/`down` to scroll vertically, `backspace` to go back, `Ctrl+T` to quit.
 
 ## Status
 
-`lib/address.lua`, `lib/parser.lua`, and `lib/view.lua` are unit-tested against a CC:Tweaked stub harness (37 checks: address parsing/formatting, every LCM directive, link cycling/wrapping, scroll clamping, back-history) and confirmed against Lamp's real sample site (`lamp/site/index.lcm`) end to end.
+`lib/address.lua`, `lib/parser.lua`, and `lib/view.lua` are unit-tested against a CC:Tweaked stub harness (checks covering address parsing/formatting, every LCM directive, link cycling/wrapping with auto-scroll, vertical scroll clamping, back-history) and confirmed against Lamp's real sample site (`lamp/site/index.lcm`) end to end.
 
 `lib/ui.lua` and the `lantern.lua` event loop are not — they're direct `term`/`keys`/`read()` calls that need a real CC:Tweaked computer to verify. Same open question as Lamp's `package.path` trick, plus two Lantern-specific ones worth a first in-game pass:
 

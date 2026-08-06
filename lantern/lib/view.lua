@@ -1,15 +1,15 @@
 local view = {}
 
--- Browsing state: the current page, a horizontal scroll offset (the
--- number of leading columns hidden off the left edge of every line),
--- which link is selected, and a back-history stack of previously
--- visited targets. No vertical scroll offset yet -- v0 shows only as
--- many rows as fit in the frame; see lantern/README.md.
+-- Browsing state: the current page, a vertical scroll offset (the
+-- number of leading lines hidden above the top of the frame), which
+-- link is selected, and a back-history stack of previously visited
+-- targets. The viewport width is fixed and lines are cropped to it,
+-- not panned -- only the vertical axis scrolls.
 function view.new()
     return {
         title = nil,
         lines = {},
-        scrollX = 0,
+        scrollY = 0,
         selectedLinkIndex = nil,
         history = {},
     }
@@ -36,7 +36,7 @@ end
 function view.setPage(state, title, lines)
     state.title = title
     state.lines = lines
-    state.scrollX = 0
+    state.scrollY = 0
 
     local indexes = linkIndexes(state)
     state.selectedLinkIndex = indexes[1]
@@ -60,7 +60,24 @@ function view.selectedTarget(state)
 end
 
 
-local function moveSelection(state, step)
+-- Clamps scrollY so the selected link's line is within the visible
+-- window, scrolling the minimum amount necessary either direction.
+local function ensureSelectionVisible(state, viewportHeight)
+    if not state.selectedLinkIndex or not viewportHeight then
+        return
+    end
+
+    local index = state.selectedLinkIndex
+
+    if index <= state.scrollY then
+        state.scrollY = index - 1
+    elseif index > state.scrollY + viewportHeight then
+        state.scrollY = index - viewportHeight
+    end
+end
+
+
+local function moveSelection(state, step, viewportHeight)
     local indexes = linkIndexes(state)
 
     if #indexes == 0 then
@@ -81,48 +98,29 @@ local function moveSelection(state, step)
         ((currentPosition - 1 + step) % #indexes) + 1
 
     state.selectedLinkIndex = indexes[nextPosition]
+    ensureSelectionVisible(state, viewportHeight)
 end
 
 
-function view.selectNextLink(state)
-    moveSelection(state, 1)
+function view.selectNextLink(state, viewportHeight)
+    moveSelection(state, 1, viewportHeight)
 end
 
 
-function view.selectPreviousLink(state)
-    moveSelection(state, -1)
+function view.selectPreviousLink(state, viewportHeight)
+    moveSelection(state, -1, viewportHeight)
 end
 
 
-local function longestLineWidth(state)
-    local longest = 0
-
-    for _, line in ipairs(state.lines) do
-        local width
-
-        if line.kind == "box" or line.kind == "hr" then
-            width = line.width or 0
-        else
-            width = #(line.text or "")
-        end
-
-        if width > longest then
-            longest = width
-        end
-    end
-
-    return longest
-end
-
-
--- Shifts the horizontal scroll offset, clamped so it never scrolls
--- past the widest line on the page (and never negative).
-function view.scroll(state, delta, viewportWidth)
+-- Shifts the vertical scroll offset, clamped so it never scrolls
+-- past the last line that can still fill the top of the viewport
+-- (and never negative).
+function view.scroll(state, delta, viewportHeight)
     local maximumOffset =
-        math.max(0, longestLineWidth(state) - viewportWidth)
+        math.max(0, #state.lines - viewportHeight)
 
-    local target = state.scrollX + delta
-    state.scrollX = math.max(0, math.min(target, maximumOffset))
+    local target = state.scrollY + delta
+    state.scrollY = math.max(0, math.min(target, maximumOffset))
 end
 
 
