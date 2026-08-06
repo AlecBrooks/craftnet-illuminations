@@ -1,0 +1,11 @@
+@title About
+@color white on green
+About this site
+
+@color white
+This is a second page, reached by following a link from the home
+page. Lamp served this file exactly the same way it served the first
+one -- read the requested path, load the matching .lcm file, reply.
+
+@color yellow
+@link mythra.craftnet.craft:80/ Back home

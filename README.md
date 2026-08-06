@@ -38,8 +38,10 @@ craftnet-illuminations/
 └── lcm/       the markup format: spec, parser, renderer
 ```
 
-All three are currently empty — this repository is in the planning stage, nothing has been built yet.
+Lantern is still an empty placeholder. LCM has a v0 spec ([lcm/SPEC.md](lcm/SPEC.md)). Lamp has a working implementation ([lamp/](lamp/)).
 
 ## Status
 
-Not started. CraftNet's primitives (subdomain addressing, request/response with free-form payloads, and — critically — many independent services sharing the same conventional port across different subdomains on one gateway) were confirmed working end-to-end, including in real gameplay, before this repository was created. That's the whole premise Illuminations is built on.
+CraftNet's primitives (subdomain addressing, request/response with free-form payloads, and — critically — many independent services sharing the same conventional port across different subdomains on one gateway) were confirmed working end-to-end, including in real gameplay, before this repository was created. That's the whole premise Illuminations is built on.
+
+Lamp exists now: it serves `.lcm` files from a local directory over `cnet.listen`/`cnet.receive`/`cnet.reply`, with path resolution and request handling unit-tested against a CC:Tweaked stub harness. It has not yet been run against a real CC:Tweaked computer. Lantern and a real LCM renderer come next — Lamp has nothing to serve *to* yet.

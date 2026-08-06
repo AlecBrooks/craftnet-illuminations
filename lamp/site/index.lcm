@@ -1,0 +1,15 @@
+@title Home
+@color white on blue
+Welcome to my CraftNet site!
+
+@color white
+This page is being served by Lamp, straight off a CraftNet gateway --
+no special support was added to CraftNet to make this work, just the
+same request/response primitives any program can use.
+
+@color yellow
+@link mythra.craftnet.craft:80/about.lcm About this site
+
+@color white
+@hr
+Thanks for stopping by.
