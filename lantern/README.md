@@ -30,4 +30,6 @@ Confirmed working in a real game session (2026-08-06): installed via `bootstrap.
 
 `lib/address.lua`, `lib/parser.lua`, and `lib/view.lua` are unit-tested against a CC:Tweaked stub harness (checks covering address parsing/formatting/relative-resolution, every LCM directive, link cycling/wrapping with auto-scroll, vertical scroll clamping, back-history) and confirmed against Lamp's real sample site (`lamp/site/index.lcm`) end to end.
 
-`lib/ui.lua` and the `lantern.lua` event loop are direct `term`/`keys`/`read()` calls, not unit tested — but now confirmed to actually render and navigate correctly on a real computer, not just reasoned about. Still open: whether `read(nil, nil, nil, default)`'s prefill behavior is exactly as intended (not yet specifically confirmed in-game).
+`lib/ui.lua` and the `lantern.lua` event loop are direct `term`/`keys`/`read()` calls, not unit tested — but now confirmed to actually render and navigate correctly on a real computer, not just reasoned about.
+
+One thing that *was* flagged as unverified and turned out to be a real problem: the address bar used to prefill with the current address via `read(nil, nil, nil, default)`. CC:Tweaked's `read()` puts the cursor at the *end* of a default value rather than selecting it, so typing a new address without first clearing the old one merges the two — e.g. typing `cnet.craft` over a prefilled `illuminations.cnet.craft` silently became `illuminations.cnet.craftcnet.craft`, not the root address you meant. Removed the prefill; the field now always starts blank.

@@ -86,7 +86,11 @@ local function promptForAddress()
     term.setBackgroundColor(colors.blue)
     term.setCursorBlink(true)
 
-    local input = read(nil, nil, nil, currentAddressText)
+    -- Deliberately not prefilled with currentAddressText: CC:Tweaked's
+    -- read() puts the cursor at the end of a default value rather than
+    -- selecting it, so typing a new address without first clearing the
+    -- old one merges the two instead of replacing it.
+    local input = read()
 
     term.setCursorBlink(false)
 
