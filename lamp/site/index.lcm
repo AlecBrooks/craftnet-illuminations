@@ -3,9 +3,11 @@
 Welcome to my CraftNet site!
 
 @color white
+@p
 This page is being served by Lamp, straight off a CraftNet gateway --
 no special support was added to CraftNet to make this work, just the
 same request/response primitives any program can use.
+@p
 
 @color yellow
 @link /about.lcm About this site

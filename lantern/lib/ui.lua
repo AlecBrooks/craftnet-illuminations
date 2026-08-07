@@ -19,6 +19,7 @@ local ui = {}
 
 local width, height
 local frameX1, frameY1, frameX2, frameY2
+local interiorX1, interiorX2
 local contentX1, contentY1, contentX2, contentY2
 local closeButtonX1, closeButtonX2
 local backButtonX, forwardButtonX
@@ -34,6 +35,9 @@ function ui.getLocalEnv()
 
     frameX1, frameY1 = 1, 3
     frameX2, frameY2 = width, height - 1
+
+    interiorX1 = frameX1 + 1
+    interiorX2 = frameX2 - 1
 
     contentX1 = frameX1 + 2
     contentX2 = frameX2 - 2
@@ -111,7 +115,7 @@ local function resolveColor(name)
 end
 
 
-local function drawFrame(x1, y1, x2, y2, frameColor, backgroundColor)
+local function drawFrame(x1, y1, x2, y2, frameColor)
     term.setBackgroundColor(frameColor)
 
     term.setCursorPos(x1, y1)
@@ -127,18 +131,27 @@ local function drawFrame(x1, y1, x2, y2, frameColor, backgroundColor)
         term.setCursorPos(x2, y)
         term.write(" ")
     end
+end
 
-    -- The whole interior, flush against the border -- content text is
-    -- inset from this by its own margin (see contentX1/Y1 etc.), but
-    -- the background fill itself reaches all the way to the frame, so
-    -- there's no gap showing the screen's own background through.
-    term.setBackgroundColor(backgroundColor)
 
-    local blankRow = string.rep(" ", math.max(0, x2 - x1 - 1))
+-- Fills one row of the interior, flush from border to border (not
+-- just the narrower text area) with `color`.
+local function fillRow(y, color)
+    term.setBackgroundColor(color)
+    term.setCursorPos(interiorX1, y)
+    term.write(string.rep(" ", math.max(0, interiorX2 - interiorX1 + 1)))
+end
 
-    for y = y1 + 1, y2 - 1 do
-        term.setCursorPos(x1 + 1, y)
-        term.write(blankRow)
+
+-- Base fill for the whole interior, so every row -- including the
+-- one-row top/bottom margin and any blank space below a short page --
+-- shows a real background instead of a gap of the outer screen color
+-- leaking through. Content rows draw over this with their own color,
+-- extended to the same full width, so a page's own @color background
+-- reaches the frame -- only the text itself keeps a one-space inset.
+local function fillInterior(y1, y2, color)
+    for y = y1, y2 do
+        fillRow(y, color)
     end
 end
 
@@ -196,58 +209,54 @@ local function drawAddressBar(addressText, editingAddress)
 end
 
 
--- One content row: text/link lines are cropped to the fixed viewport
--- width (never panned); box/hr lines paint a solid run of background
--- color, also cropped to that width.
-local function drawContentLine(y, line, viewportWidth)
-    term.setCursorPos(contentX1, y)
-
+-- One content row: text/link lines fill the row's full width (border
+-- to border) with the line's own background -- a page's own @color
+-- reaches the frame, not just a fixed default -- with the text itself
+-- cropped to the narrower, inset text width. hr does the same (it's
+-- meant to span the page, same as text/link now do). box keeps its
+-- own author-specified width untouched; fillInterior already gave it
+-- a sane base to sit on.
+local function drawContentLine(y, line, textWidth)
     if line.kind == "box" then
         term.setBackgroundColor(resolveColor(line.color))
-        local visible = math.max(0, math.min(line.width, viewportWidth))
+        term.setCursorPos(contentX1, y)
+        local visible = math.max(0, math.min(line.width, textWidth))
         term.write(string.rep(" ", visible))
 
     elseif line.kind == "hr" then
-        term.setBackgroundColor(resolveColor(line.color))
-        term.write(string.rep(" ", viewportWidth))
+        fillRow(y, resolveColor(line.color))
 
     else
+        local bg = resolveColor(line.bg)
+        fillRow(y, bg)
+
         local text = line.text or ""
 
         if line.kind == "link" then
             text = "> " .. text
         end
 
-        term.setBackgroundColor(resolveColor(line.bg))
+        term.setBackgroundColor(bg)
         term.setTextColor(resolveColor(line.fg))
-
-        local visible = text:sub(1, viewportWidth)
-        term.write(visible)
-
-        local padding = viewportWidth - #visible
-        if padding > 0 then
-            term.write(string.rep(" ", padding))
-        end
+        term.setCursorPos(contentX1, y)
+        term.write(text:sub(1, textWidth))
     end
 end
 
 
 local function drawContent(browsing)
-    local viewportWidth = ui.contentWidth()
+    local textWidth = ui.contentWidth()
     local viewportHeight = ui.contentHeight()
-
-    term.setBackgroundColor(CONTENT_BACKGROUND)
 
     for row = 0, viewportHeight - 1 do
         local y = contentY1 + row
         local line = browsing.lines[browsing.scrollY + row + 1]
 
         if line then
-            drawContentLine(y, line, viewportWidth)
-        else
-            term.setCursorPos(contentX1, y)
-            term.write(string.rep(" ", viewportWidth))
+            drawContentLine(y, line, textWidth)
         end
+        -- else: already covered by fillInterior's base fill (called
+        -- before this, in ui.draw)
     end
 end
 
@@ -278,7 +287,8 @@ function ui.draw(browsing, options)
     drawHeader(browsing.title)
     drawAddressBar(options.addressText, options.editingAddress)
 
-    drawFrame(frameX1, frameY1, frameX2, frameY2, FRAME_COLOR, CONTENT_BACKGROUND)
+    drawFrame(frameX1, frameY1, frameX2, frameY2, FRAME_COLOR)
+    fillInterior(frameY1 + 1, frameY2 - 1, CONTENT_BACKGROUND)
     drawHistoryButtons(options.canGoBack, options.canGoForward)
     drawContent(browsing)
 
