@@ -79,7 +79,7 @@ local function loadTarget(target, recordVisit)
         return
     end
 
-    local page = parser.parse(packet.data)
+    local page = parser.parse(packet.data, ui.contentWidth())
     view.setPage(browsing, page.title, page.lines)
 
     currentTarget = target

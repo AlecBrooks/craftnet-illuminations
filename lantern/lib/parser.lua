@@ -13,9 +13,13 @@ local COLOR_NAMES = {
 parser.DEFAULT_FG = "white"
 parser.DEFAULT_BG = "black"
 
--- The width @p wraps to and @c centers within. A fixed convention
--- (not the real, possibly-different runtime viewport width) so a
--- .lcm file looks the same regardless of which computer renders it.
+-- Default width @p wraps to and @c centers within, used only when the
+-- caller doesn't pass an explicit width to parser.parse. Lantern
+-- always passes the real content viewport width (ui.contentWidth())
+-- so text actually fills the screen instead of wrapping to a guess
+-- that doesn't match -- this default exists for callers (tests,
+-- anything inspecting a .lcm file without a live viewport) that don't
+-- have a real width to give it.
 parser.BLOCK_WIDTH = 48
 
 
@@ -104,7 +108,7 @@ local function findMarker(text, tag)
 end
 
 
-local function expandBlocks(sourceLines)
+local function expandBlocks(sourceLines, blockWidth)
     local outputLines = {}
     local mode = nil -- nil | "paragraph" | "center"
     local accumulator = {}
@@ -118,11 +122,11 @@ local function expandBlocks(sourceLines)
         end
 
         if mode == "paragraph" then
-            for _, wrapped in ipairs(wrapText(text, parser.BLOCK_WIDTH)) do
+            for _, wrapped in ipairs(wrapText(text, blockWidth)) do
                 outputLines[#outputLines + 1] = wrapped
             end
         else
-            outputLines[#outputLines + 1] = centerLine(text, parser.BLOCK_WIDTH)
+            outputLines[#outputLines + 1] = centerLine(text, blockWidth)
         end
     end
 
@@ -234,13 +238,17 @@ end
 --   { kind = "hr", color = string }
 -- Unrecognized "@" directives are silently skipped, per the v0 spec,
 -- so older Lantern builds don't choke on newer LCM files.
-function parser.parse(source)
+--
+-- blockWidth: the width @p wraps to and @c centers within. Defaults
+-- to BLOCK_WIDTH if omitted -- pass the real viewport width (e.g.
+-- ui.contentWidth()) so wrapped text actually fills the screen.
+function parser.parse(source, blockWidth)
     local page = { title = nil, lines = {} }
 
     local fg = parser.DEFAULT_FG
     local bg = parser.DEFAULT_BG
 
-    local lines = expandBlocks(splitLines(source))
+    local lines = expandBlocks(splitLines(source), blockWidth or parser.BLOCK_WIDTH)
 
     for _, line in ipairs(lines) do
         if line:sub(1, 1) == "@" then
