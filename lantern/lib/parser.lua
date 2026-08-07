@@ -13,9 +13,194 @@ local COLOR_NAMES = {
 parser.DEFAULT_FG = "white"
 parser.DEFAULT_BG = "black"
 
+-- The width @p wraps to and @c centers within. A fixed convention
+-- (not the real, possibly-different runtime viewport width) so a
+-- .lcm file looks the same regardless of which computer renders it.
+parser.BLOCK_WIDTH = 48
+
 
 local function trim(text)
     return tostring(text or ""):match("^%s*(.-)%s*$")
+end
+
+
+-- Splits source text into an array of lines, stripping one trailing
+-- newline (the usual "file ends with a newline" convention) so it
+-- doesn't produce a phantom blank line at the end.
+local function splitLines(source)
+    local text = tostring(source or ""):gsub("\n$", "")
+    local lines = {}
+
+    for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+        lines[#lines + 1] = line
+    end
+
+    return lines
+end
+
+
+-- Greedy word-wrap: never breaks a word, never exceeds maxWidth per
+-- line (unless a single word is itself longer than maxWidth, which
+-- can't be helped without breaking it).
+local function wrapText(text, maxWidth)
+    local lines = {}
+    local current = ""
+
+    for word in text:gmatch("%S+") do
+        if current == "" then
+            current = word
+        elseif #current + 1 + #word <= maxWidth then
+            current = current .. " " .. word
+        else
+            lines[#lines + 1] = current
+            current = word
+        end
+    end
+
+    if current ~= "" then
+        lines[#lines + 1] = current
+    end
+
+    return lines
+end
+
+
+-- Pads text with an equal number of spaces on each side to center it
+-- within `width` columns.
+local function centerLine(text, width)
+    local padding = math.max(0, math.floor((width - #text) / 2))
+    return string.rep(" ", padding) .. text .. string.rep(" ", padding)
+end
+
+
+-- Expands @p ... @p (word-wrapped to BLOCK_WIDTH) and @c ... @c
+-- (centered within BLOCK_WIDTH) into plain content lines, before the
+-- regular per-line directive parser ever sees them. Either can open
+-- and close on the same source line, or span several -- whatever's
+-- easiest to write in the .lcm file; text between the markers is
+-- joined with spaces regardless of how it was broken across lines.
+--
+-- Finds `tag` ("@p" or "@c") as a whole token -- not immediately
+-- followed by another letter, so "@color" is never mistaken for a
+-- "@c" marker (it starts with the same two characters).
+local function findMarker(text, tag)
+    local searchFrom = 1
+
+    while true do
+        local startIndex = text:find(tag, searchFrom, true)
+
+        if not startIndex then
+            return nil
+        end
+
+        local afterChar = text:sub(startIndex + #tag, startIndex + #tag)
+
+        if afterChar == "" or not afterChar:match("%a") then
+            return startIndex
+        end
+
+        searchFrom = startIndex + 1
+    end
+end
+
+
+local function expandBlocks(sourceLines)
+    local outputLines = {}
+    local mode = nil -- nil | "paragraph" | "center"
+    local accumulator = {}
+
+    local function flush()
+        local text = trim(table.concat(accumulator, " "))
+        accumulator = {}
+
+        if text == "" then
+            return
+        end
+
+        if mode == "paragraph" then
+            for _, wrapped in ipairs(wrapText(text, parser.BLOCK_WIDTH)) do
+                outputLines[#outputLines + 1] = wrapped
+            end
+        else
+            outputLines[#outputLines + 1] = centerLine(text, parser.BLOCK_WIDTH)
+        end
+    end
+
+    local function marker()
+        return mode == "paragraph" and "@p" or "@c"
+    end
+
+    for _, line in ipairs(sourceLines) do
+        local remaining = line
+
+        -- True only for the untouched start of this source line --
+        -- lets a genuinely blank line still come through as one
+        -- (preserving intentional spacing), while an empty fragment
+        -- left over after consuming a marker earlier on the same
+        -- line doesn't produce a spurious blank line.
+        local isFreshLine = true
+
+        while remaining ~= nil do
+            if mode == nil then
+                local pIndex = findMarker(remaining, "@p")
+                local cIndex = findMarker(remaining, "@c")
+
+                if pIndex and (not cIndex or pIndex < cIndex) then
+                    local before = trim(remaining:sub(1, pIndex - 1))
+                    if before ~= "" then
+                        outputLines[#outputLines + 1] = before
+                    end
+                    mode = "paragraph"
+                    remaining = remaining:sub(pIndex + 2)
+
+                elseif cIndex then
+                    local before = trim(remaining:sub(1, cIndex - 1))
+                    if before ~= "" then
+                        outputLines[#outputLines + 1] = before
+                    end
+                    mode = "center"
+                    remaining = remaining:sub(cIndex + 2)
+
+                else
+                    if isFreshLine then
+                        outputLines[#outputLines + 1] = remaining
+                    elseif trim(remaining) ~= "" then
+                        outputLines[#outputLines + 1] = trim(remaining)
+                    end
+                    remaining = nil
+                end
+
+            else
+                local closeIndex = findMarker(remaining, marker())
+
+                if closeIndex then
+                    local before = remaining:sub(1, closeIndex - 1)
+                    if trim(before) ~= "" then
+                        accumulator[#accumulator + 1] = trim(before)
+                    end
+                    flush()
+                    mode = nil
+                    remaining = remaining:sub(closeIndex + 2)
+
+                else
+                    if trim(remaining) ~= "" then
+                        accumulator[#accumulator + 1] = trim(remaining)
+                    end
+                    remaining = nil
+                end
+            end
+
+            isFreshLine = false
+        end
+    end
+
+    -- An unterminated block at EOF still gets flushed rather than
+    -- silently dropped.
+    if mode ~= nil then
+        flush()
+    end
+
+    return outputLines
 end
 
 
@@ -55,12 +240,9 @@ function parser.parse(source)
     local fg = parser.DEFAULT_FG
     local bg = parser.DEFAULT_BG
 
-    -- Strip one trailing newline (the usual "file ends with a
-    -- newline" convention) so it doesn't render as a phantom blank
-    -- row at the bottom of every page.
-    local text = tostring(source or ""):gsub("\n$", "")
+    local lines = expandBlocks(splitLines(source))
 
-    for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+    for _, line in ipairs(lines) do
         if line:sub(1, 1) == "@" then
             local directive, argumentText = line:match("^@(%S+)%s*(.-)$")
             argumentText = argumentText or ""

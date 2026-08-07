@@ -1,114 +1,43 @@
 local view = {}
 
+-- How many pages back/forward you can navigate in either direction.
+view.HISTORY_LIMIT = 5
+
+
 -- Browsing state: the current page, a vertical scroll offset (the
--- number of leading lines hidden above the top of the frame), which
--- link is selected, and a back-history stack of previously visited
--- targets. The viewport width is fixed and lines are cropped to it,
--- not panned -- only the vertical axis scrolls.
+-- number of leading lines hidden above the top of the frame), and
+-- bounded back/forward history stacks. The viewport width is fixed
+-- and lines are cropped to it, not panned -- only the vertical axis
+-- scrolls. Links are followed by clicking them directly (no keyboard
+-- selection state to track).
 function view.new()
     return {
         title = nil,
         lines = {},
         scrollY = 0,
-        selectedLinkIndex = nil,
-        history = {},
+        backStack = {},
+        forwardStack = {},
     }
 end
 
 
-local function linkIndexes(state)
-    local indexes = {}
-
-    for index, line in ipairs(state.lines) do
-        if line.kind == "link" then
-            indexes[#indexes + 1] = index
-        end
-    end
-
-    return indexes
-end
-
-
--- Loads a freshly parsed page into the state, resetting scroll and
--- selecting the first link (if any). Does not touch history --
--- callers push onto history themselves so "back" and "follow a link"
--- can behave differently.
+-- Loads a freshly parsed page into the state, resetting scroll.
+-- Doesn't touch history -- callers record the visit themselves via
+-- view.recordVisit, since "follow a link" and "go back" build history
+-- differently.
 function view.setPage(state, title, lines)
     state.title = title
     state.lines = lines
     state.scrollY = 0
-
-    local indexes = linkIndexes(state)
-    state.selectedLinkIndex = indexes[1]
 end
 
 
-function view.hasLinks(state)
-    return state.selectedLinkIndex ~= nil
-end
-
-
--- Returns the target of the currently selected link, or nil if the
--- page has no links.
-function view.selectedTarget(state)
-    if not state.selectedLinkIndex then
-        return nil
-    end
-
-    local line = state.lines[state.selectedLinkIndex]
-    return line and line.target
-end
-
-
--- Clamps scrollY so the selected link's line is within the visible
--- window, scrolling the minimum amount necessary either direction.
-local function ensureSelectionVisible(state, viewportHeight)
-    if not state.selectedLinkIndex or not viewportHeight then
-        return
-    end
-
-    local index = state.selectedLinkIndex
-
-    if index <= state.scrollY then
-        state.scrollY = index - 1
-    elseif index > state.scrollY + viewportHeight then
-        state.scrollY = index - viewportHeight
-    end
-end
-
-
-local function moveSelection(state, step, viewportHeight)
-    local indexes = linkIndexes(state)
-
-    if #indexes == 0 then
-        state.selectedLinkIndex = nil
-        return
-    end
-
-    local currentPosition = 1
-
-    for position, index in ipairs(indexes) do
-        if index == state.selectedLinkIndex then
-            currentPosition = position
-            break
-        end
-    end
-
-    local nextPosition =
-        ((currentPosition - 1 + step) % #indexes) + 1
-
-    state.selectedLinkIndex = indexes[nextPosition]
-    ensureSelectionVisible(state, viewportHeight)
-end
-
-
-function view.selectNextLink(state, viewportHeight)
-    moveSelection(state, 1, viewportHeight)
-end
-
-
-function view.selectPreviousLink(state, viewportHeight)
-    moveSelection(state, -1, viewportHeight)
+-- The line at viewport row `row` (0-indexed, relative to the top of
+-- the content area), accounting for the current scroll offset. The
+-- same math ui.lua's renderer uses, so a click and the row it visibly
+-- lines up with always agree.
+function view.lineAt(state, row)
+    return state.lines[state.scrollY + row + 1]
 end
 
 
@@ -124,25 +53,68 @@ function view.scroll(state, delta, viewportHeight)
 end
 
 
-function view.pushHistory(state, target)
-    local history = state.history
-    history[#history + 1] = target
+local function pushBounded(stack, value)
+    stack[#stack + 1] = value
+
+    if #stack > view.HISTORY_LIMIT then
+        table.remove(stack, 1)
+    end
 end
 
 
--- Pops and returns the previous target, or nil if there is no
--- history to go back to.
-function view.popHistory(state)
-    local history = state.history
-    local count = #history
+-- Records that `target` is being left behind for a newly navigated-to
+-- page (a clicked link, a typed address -- anything that isn't back/
+-- forward itself). Clears forward history, same as any real browser:
+-- navigating somewhere new invalidates the "redo" path.
+function view.recordVisit(state, target)
+    pushBounded(state.backStack, target)
+    state.forwardStack = {}
+end
+
+
+function view.canGoBack(state)
+    return #state.backStack > 0
+end
+
+
+function view.canGoForward(state)
+    return #state.forwardStack > 0
+end
+
+
+-- Moves one step back, given the target being left behind (so it can
+-- be pushed onto forward history). Returns the target to load, or nil
+-- if there's nowhere to go back to.
+function view.goBack(state, currentTarget)
+    local count = #state.backStack
 
     if count == 0 then
         return nil
     end
 
-    local target = history[count]
-    history[count] = nil
-    return target
+    local previous = state.backStack[count]
+    state.backStack[count] = nil
+
+    pushBounded(state.forwardStack, currentTarget)
+
+    return previous
+end
+
+
+-- The mirror of goBack.
+function view.goForward(state, currentTarget)
+    local count = #state.forwardStack
+
+    if count == 0 then
+        return nil
+    end
+
+    local next = state.forwardStack[count]
+    state.forwardStack[count] = nil
+
+    pushBounded(state.backStack, currentTarget)
+
+    return next
 end
 
 

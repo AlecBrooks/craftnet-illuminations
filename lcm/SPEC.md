@@ -34,13 +34,23 @@ Draws a solid block `<width>` columns by `<height>` rows in `<color>`, starting 
 ```
 A horizontal rule spanning the current line. Shorthand for a 1-row `@box` in the current color.
 
+```text
+@p <text> @p
+```
+Word-wraps the text between the two markers to lines of at most 48 characters, never breaking a word. The opening and closing `@p` can be on the same source line or several lines apart — whatever's easiest to write; text is joined with single spaces regardless of how it was broken up in the file. Use this for actual paragraphs instead of hand-wrapping a plain content line yourself.
+
+```text
+@c <text> @c
+```
+Centers the text between the two markers within 48 columns (padded evenly on both sides; if the text is already 48 characters or longer, it's left as-is rather than compressed). Same open/close flexibility as `@p`. Meant for short lines — headings, a centered blurb — not long passages.
+
 ## Content lines
 
 Any line not starting with `@` is rendered literally, in whatever color is currently in effect, starting at the left edge of the page.
 
 ## What v0 deliberately leaves out
 
-No inline color changes within a single line (a line is one color, set by the last `@color` before it). No automatic text wrapping. No images. No forms/inputs. All of this can be added later without breaking existing `.lcm` files, since an unrecognized directive can simply be ignored by a stricter renderer rather than crashing it — but v0 doesn't need any of it to prove the concept.
+No inline color changes within a single line (a line is one color, set by the last `@color` before it). No wrapping/centering to anything other than the fixed 48-column convention `@p`/`@c` use (not the real, possibly different, runtime viewport width). No images. No forms/inputs. All of this can be added later without breaking existing `.lcm` files, since an unrecognized directive can simply be ignored by a stricter renderer rather than crashing it — but v0 doesn't need any of it to prove the concept.
 
 ## Example
 
@@ -60,4 +70,16 @@ same request/response primitives any program can use.
 @color white
 @hr
 Thanks for stopping by.
+```
+
+A page using `@p`/`@c` (see `lamp/site/article.lcm` for the full version):
+
+```text
+@title A Long Article
+@c Lorem Ipsum Lorem Ipsum @c
+
+@p
+Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque
+faucibus ex sapien vitae pellentesque sem placerat.
+@p
 ```
