@@ -37,12 +37,12 @@ A horizontal rule spanning the current line. Shorthand for a 1-row `@box` in the
 ```text
 @p <text> @p
 ```
-Word-wraps the text between the two markers to lines of at most 48 characters, never breaking a word. The opening and closing `@p` can be on the same source line or several lines apart — whatever's easiest to write; text is joined with single spaces regardless of how it was broken up in the file. Use this for actual paragraphs instead of hand-wrapping a plain content line yourself.
+Word-wraps the text between the two markers to the width of Lantern's actual content viewport, never breaking a word. The opening and closing `@p` can be on the same source line or several lines apart — whatever's easiest to write; text is joined with single spaces regardless of how it was broken up in the file. Use this for actual paragraphs instead of hand-wrapping a plain content line yourself.
 
 ```text
 @c <text> @c
 ```
-Centers the text between the two markers within 48 columns (padded evenly on both sides; if the text is already 48 characters or longer, it's left as-is rather than compressed). Same open/close flexibility as `@p`. Meant for short lines — headings, a centered blurb — not long passages.
+Centers the text between the two markers within that same viewport width (padded evenly on both sides; if the text is already as wide as the viewport or wider, it's left as-is rather than compressed). Same open/close flexibility as `@p`. Meant for short lines — headings, a centered blurb — not long passages.
 
 ## Content lines
 
@@ -50,7 +50,7 @@ Any line not starting with `@` is rendered literally, in whatever color is curre
 
 ## What v0 deliberately leaves out
 
-No inline color changes within a single line (a line is one color, set by the last `@color` before it). No wrapping/centering to anything other than the fixed 48-column convention `@p`/`@c` use (not the real, possibly different, runtime viewport width). No images. No forms/inputs. All of this can be added later without breaking existing `.lcm` files, since an unrecognized directive can simply be ignored by a stricter renderer rather than crashing it — but v0 doesn't need any of it to prove the concept.
+No inline color changes within a single line (a line is one color, set by the last `@color` before it). `@p`/`@c` wrap and center to whatever renders them, so the same file can look narrower or wider on a different-sized screen — there's no fixed-width guarantee across computers the way plain content lines have (since those are never reflowed at all). No images. No forms/inputs. All of this can be added later without breaking existing `.lcm` files, since an unrecognized directive can simply be ignored by a stricter renderer rather than crashing it — but v0 doesn't need any of it to prove the concept.
 
 ## Example
 

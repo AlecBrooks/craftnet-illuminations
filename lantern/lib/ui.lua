@@ -128,7 +128,18 @@ local function drawFrame(x1, y1, x2, y2, frameColor, backgroundColor)
         term.write(" ")
     end
 
+    -- The whole interior, flush against the border -- content text is
+    -- inset from this by its own margin (see contentX1/Y1 etc.), but
+    -- the background fill itself reaches all the way to the frame, so
+    -- there's no gap showing the screen's own background through.
     term.setBackgroundColor(backgroundColor)
+
+    local blankRow = string.rep(" ", math.max(0, x2 - x1 - 1))
+
+    for y = y1 + 1, y2 - 1 do
+        term.setCursorPos(x1 + 1, y)
+        term.write(blankRow)
+    end
 end
 
 
