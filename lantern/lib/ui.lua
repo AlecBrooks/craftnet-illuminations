@@ -244,9 +244,38 @@ local function drawContentLine(y, line, textWidth)
 end
 
 
+-- The background a line's row uses, for bleeding into the one-row
+-- top/bottom margin above/below the text area (see drawContent) --
+-- box is a deliberately confined shape, not a row-spanning color, so
+-- it has nothing sensible to bleed; falls back to CONTENT_BACKGROUND.
+local function lineBackground(line)
+    if not line then
+        return CONTENT_BACKGROUND
+    elseif line.kind == "text" or line.kind == "link" then
+        return resolveColor(line.bg)
+    elseif line.kind == "hr" then
+        return resolveColor(line.color)
+    else
+        return CONTENT_BACKGROUND
+    end
+end
+
+
 local function drawContent(browsing)
     local textWidth = ui.contentWidth()
     local viewportHeight = ui.contentHeight()
+
+    local firstLine = browsing.lines[browsing.scrollY + 1]
+    local lastLine = browsing.lines[browsing.scrollY + viewportHeight]
+
+    -- The one-row margin above/below the text area is never drawn
+    -- into by any actual line, so left alone it would always show
+    -- fillInterior's fixed base color instead of whatever the
+    -- adjacent line's background actually is. Bleed that color in
+    -- instead, so a page's own background reaches the frame on the
+    -- vertical edges too, not just the horizontal ones.
+    fillRow(contentY1 - 1, lineBackground(firstLine))
+    fillRow(contentY2 + 1, lineBackground(lastLine))
 
     for row = 0, viewportHeight - 1 do
         local y = contentY1 + row
