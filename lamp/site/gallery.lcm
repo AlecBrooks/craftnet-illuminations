@@ -10,8 +10,10 @@ A tiny gallery
 @box cyan 20 2
 
 @color white
+@p
 Five colored blocks, drawn with @box -- the same colored-space-
 character trick the Gateway's own dashboard uses to draw its frame.
+@p
 
 @color yellow
 @link / Back home
