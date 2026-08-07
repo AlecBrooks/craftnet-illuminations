@@ -7,5 +7,8 @@ This is a second page, reached by following a link from the home
 page. Lamp served this file exactly the same way it served the first
 one -- read the requested path, load the matching .lcm file, reply.
 
+@c Built on CraftNet's own primitives @c
+
 @color yellow
 @link / Back home
+@link /gallery.lcm Check out the gallery

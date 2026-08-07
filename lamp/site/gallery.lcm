@@ -1,0 +1,18 @@
+@title Gallery
+@color white on purple
+A tiny gallery
+
+@color white
+@box red 20 2
+@box orange 20 2
+@box yellow 20 2
+@box lime 20 2
+@box cyan 20 2
+
+@color white
+Five colored blocks, drawn with @box -- the same colored-space-
+character trick the Gateway's own dashboard uses to draw its frame.
+
+@color yellow
+@link / Back home
+@link /article.lcm Read the long article

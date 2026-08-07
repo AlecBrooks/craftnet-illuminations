@@ -2,26 +2,49 @@
 -- CC:Tweaked's term/colors APIs, so unlike the rest of lantern/lib
 -- this module isn't covered by the stub-harness unit tests -- see
 -- lantern/README.md for what that leaves unverified.
+--
+-- Layout (all click targets, hit-tested by lantern.lua against the
+-- same coordinates used to draw them):
+--   row 1            : title (left) + close button (right), on the
+--                       bare screen background, outside the frame
+--   row 2            : address bar, same background, click to edit
+--   frame            : flush with the screen's left/right edges,
+--                       "< >" back/forward buttons on its own top
+--                       border, gray instead of white
+--   last row         : status line (no separate hint row anymore --
+--                       everything is a click target now, nothing to
+--                       remind anyone how to press a key for)
 
 local ui = {}
 
 local width, height
 local frameX1, frameY1, frameX2, frameY2
 local contentX1, contentY1, contentX2, contentY2
+local closeButtonX1, closeButtonX2
+local backButtonX, forwardButtonX
+
+local OUTER_BACKGROUND = colors.lightGray
+local OUTER_TEXT = colors.black
+local FRAME_COLOR = colors.gray
+local CONTENT_BACKGROUND = colors.blue
 
 
 function ui.getLocalEnv()
     width, height = term.getSize()
 
-    frameX1, frameY1 = 2, 3
-    frameX2, frameY2 = width - 1, height - 2
+    frameX1, frameY1 = 1, 3
+    frameX2, frameY2 = width, height - 1
 
-    -- One-space margin between the frame border and the content
-    -- itself on every side, so text never sits flush against it.
     contentX1 = frameX1 + 2
     contentX2 = frameX2 - 2
     contentY1 = frameY1 + 2
     contentY2 = frameY2 - 2
+
+    closeButtonX2 = width
+    closeButtonX1 = width - 2
+
+    backButtonX = frameX1 + 1
+    forwardButtonX = frameX1 + 3
 end
 
 
@@ -36,11 +59,50 @@ end
 
 
 -- Where the blocking read() call for address entry should place its
--- cursor -- right after the "Go to: " label ui.draw() writes when
--- editingAddress is true. Only valid after draw() has run at least
--- once (it depends on getLocalEnv's layout math).
+-- cursor -- right after the "Go to: " label drawAddressBar writes
+-- when editingAddress is true.
+local ADDRESS_EDIT_LABEL = "Go to: "
+
 function ui.addressInputPosition()
-    return frameX1 + 7, 2
+    return 1 + #ADDRESS_EDIT_LABEL, 2
+end
+
+
+-- Hit-testing helpers -- lantern.lua calls these with a raw
+-- mouse_click (x, y) to decide what was clicked. Kept here so the
+-- click regions can never drift out of sync with what's actually
+-- drawn.
+
+function ui.isCloseButton(x, y)
+    return y == 1 and x >= closeButtonX1 and x <= closeButtonX2
+end
+
+
+function ui.isAddressBar(x, y)
+    return y == 2
+end
+
+
+function ui.isBackButton(x, y)
+    return y == frameY1 and x == backButtonX
+end
+
+
+function ui.isForwardButton(x, y)
+    return y == frameY1 and x == forwardButtonX
+end
+
+
+-- Returns the 0-indexed content row a click landed on, or nil if the
+-- click was outside the content area entirely.
+function ui.contentRowAt(x, y)
+    if x < contentX1 or x > contentX2
+        or y < contentY1 or y > contentY2
+    then
+        return nil
+    end
+
+    return y - contentY1
 end
 
 
@@ -70,48 +132,63 @@ local function drawFrame(x1, y1, x2, y2, frameColor, backgroundColor)
 end
 
 
+-- "< >" on the frame's own top border -- bright when that direction
+-- has history to go to, dimmed into the border color when it doesn't.
+local function drawHistoryButtons(canGoBack, canGoForward)
+    term.setBackgroundColor(FRAME_COLOR)
+
+    term.setCursorPos(backButtonX, frameY1)
+    term.setTextColor(canGoBack and colors.white or FRAME_COLOR)
+    term.write("<")
+
+    term.setCursorPos(forwardButtonX, frameY1)
+    term.setTextColor(canGoForward and colors.white or FRAME_COLOR)
+    term.write(">")
+end
+
+
 local function drawHeader(title)
-    local message = title and ("Lantern -- " .. title) or "Lantern"
-
-    if #message > width - 2 then
-        message = message:sub(1, width - 2)
-    end
-
-    local headerX = math.floor((width - #message) / 2) + 1
-
-    term.setBackgroundColor(colors.blue)
-    term.setTextColor(colors.white)
+    term.setBackgroundColor(OUTER_BACKGROUND)
+    term.setTextColor(OUTER_TEXT)
     term.setCursorPos(1, 1)
     term.clearLine()
 
-    term.setBackgroundColor(colors.magenta)
-    term.setCursorPos(headerX, 1)
+    local message = title and ("Lantern -- " .. title) or "Lantern"
+    local maximumLength = math.max(0, closeButtonX1 - 2)
+
+    if #message > maximumLength then
+        message = message:sub(1, maximumLength)
+    end
+
+    term.setCursorPos(1, 1)
     term.write(message)
+
+    term.setBackgroundColor(colors.red)
+    term.setTextColor(colors.white)
+    term.setCursorPos(closeButtonX1, 1)
+    term.write("[X]")
 end
 
 
 local function drawAddressBar(addressText, editingAddress)
-    term.setBackgroundColor(colors.blue)
-    term.setTextColor(colors.white)
+    term.setBackgroundColor(
+        editingAddress and colors.white or OUTER_BACKGROUND
+    )
+    term.setTextColor(OUTER_TEXT)
     term.setCursorPos(1, 2)
     term.clearLine()
 
-    term.setCursorPos(frameX1, 2)
-    term.write(editingAddress and "Go to: " or "Address: ")
+    term.setCursorPos(1, 2)
+    term.write(editingAddress and ADDRESS_EDIT_LABEL or "Address: ")
 
-    term.setTextColor(editingAddress and colors.yellow or colors.lightGray)
     term.write(addressText or "")
-
-    if editingAddress then
-        term.write("_")
-    end
 end
 
 
 -- One content row: text/link lines are cropped to the fixed viewport
 -- width (never panned); box/hr lines paint a solid run of background
 -- color, also cropped to that width.
-local function drawContentLine(y, line, viewportWidth, selected)
+local function drawContentLine(y, line, viewportWidth)
     term.setCursorPos(contentX1, y)
 
     if line.kind == "box" then
@@ -130,13 +207,8 @@ local function drawContentLine(y, line, viewportWidth, selected)
             text = "> " .. text
         end
 
-        if selected then
-            term.setBackgroundColor(resolveColor(line.fg))
-            term.setTextColor(resolveColor(line.bg))
-        else
-            term.setBackgroundColor(resolveColor(line.bg))
-            term.setTextColor(resolveColor(line.fg))
-        end
+        term.setBackgroundColor(resolveColor(line.bg))
+        term.setTextColor(resolveColor(line.fg))
 
         local visible = text:sub(1, viewportWidth)
         term.write(visible)
@@ -153,16 +225,14 @@ local function drawContent(browsing)
     local viewportWidth = ui.contentWidth()
     local viewportHeight = ui.contentHeight()
 
-    term.setBackgroundColor(colors.blue)
+    term.setBackgroundColor(CONTENT_BACKGROUND)
 
     for row = 0, viewportHeight - 1 do
         local y = contentY1 + row
-        local lineIndex = browsing.scrollY + row + 1
-        local line = browsing.lines[lineIndex]
+        local line = browsing.lines[browsing.scrollY + row + 1]
 
         if line then
-            local selected = lineIndex == browsing.selectedLinkIndex
-            drawContentLine(y, line, viewportWidth, selected)
+            drawContentLine(y, line, viewportWidth)
         else
             term.setCursorPos(contentX1, y)
             term.write(string.rep(" ", viewportWidth))
@@ -172,49 +242,36 @@ end
 
 
 local function drawStatus(statusText, statusColor)
-    term.setBackgroundColor(colors.blue)
-    term.setTextColor(statusColor or colors.lightGray)
-    term.setCursorPos(1, height - 1)
-    term.clearLine()
-
-    term.setCursorPos(2, height - 1)
-    term.write((statusText or ""):sub(1, width - 2))
-end
-
-
-local function drawHint()
-    term.setBackgroundColor(colors.blue)
-    term.setTextColor(colors.lightGray)
+    term.setBackgroundColor(OUTER_BACKGROUND)
+    term.setTextColor(statusColor or OUTER_TEXT)
     term.setCursorPos(1, height)
     term.clearLine()
 
-    term.setCursorPos(2, height)
-    term.write(
-        "[a] go  [tab] next link  [enter] follow  "
-        .. "[up/down] scroll  [backspace] back  Ctrl+T to quit"
-    )
+    term.setCursorPos(1, height)
+    term.write((statusText or ""):sub(1, width))
 end
 
 
 -- browsing: a lib/view.lua state table.
--- options: { addressText, editingAddress, statusText, statusColor }
+-- options: { addressText, editingAddress, statusText, statusColor,
+--            canGoBack, canGoForward }
 function ui.draw(browsing, options)
     options = options or {}
 
     ui.getLocalEnv()
 
-    term.setBackgroundColor(colors.blue)
-    term.setTextColor(colors.white)
+    term.setBackgroundColor(OUTER_BACKGROUND)
+    term.setTextColor(OUTER_TEXT)
     term.clear()
 
     drawHeader(browsing.title)
     drawAddressBar(options.addressText, options.editingAddress)
 
-    drawFrame(frameX1, frameY1, frameX2, frameY2, colors.white, colors.blue)
+    drawFrame(frameX1, frameY1, frameX2, frameY2, FRAME_COLOR, CONTENT_BACKGROUND)
+    drawHistoryButtons(options.canGoBack, options.canGoForward)
     drawContent(browsing)
 
     drawStatus(options.statusText, options.statusColor)
-    drawHint()
 end
 
 

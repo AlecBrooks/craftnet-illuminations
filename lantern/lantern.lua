@@ -1,5 +1,5 @@
 -- Lantern: a CraftNet browser. An address bar, a fixed-width frame,
--- and an LCM renderer with hyperlink navigation.
+-- and an LCM renderer with mouse-driven navigation.
 --
 -- Depends on an existing CraftNet Host install for its public
 -- lib/cnet.lua developer API (https://github.com/AlecBrooks/craftnet).
@@ -28,7 +28,7 @@ local browsing = view.new()
 local currentTarget = nil
 local currentAddressText = ""
 local statusText = ""
-local statusColor = colors.lightGray
+local statusColor = colors.black
 
 
 local function redraw()
@@ -36,6 +36,8 @@ local function redraw()
         addressText = currentAddressText,
         statusText = statusText,
         statusColor = statusColor,
+        canGoBack = view.canGoBack(browsing),
+        canGoForward = view.canGoForward(browsing),
     })
 end
 
@@ -47,13 +49,17 @@ end
 -- no UX cost to giving it more room.
 local REQUEST_TIMEOUT_SECONDS = 20
 
-local function loadTarget(target, recordCurrentInHistory)
-    if recordCurrentInHistory and currentTarget then
-        view.pushHistory(browsing, currentTarget)
+-- recordVisit: true for a fresh navigation (a clicked link, a typed
+-- address) -- pushes the page being left onto back history and clears
+-- forward history. false when the caller (startup, back/forward) has
+-- already handled history itself, or there's nothing to record yet.
+local function loadTarget(target, recordVisit)
+    if recordVisit and currentTarget then
+        view.recordVisit(browsing, currentTarget)
     end
 
     statusText = "Loading " .. address.format(target) .. " ..."
-    statusColor = colors.yellow
+    statusColor = colors.gray
     redraw()
 
     local packet, requestError =
@@ -79,7 +85,7 @@ local function loadTarget(target, recordCurrentInHistory)
     currentTarget = target
     currentAddressText = address.format(target)
     statusText = "Loaded " .. currentAddressText .. "."
-    statusColor = colors.lime
+    statusColor = colors.gray
     redraw()
 end
 
@@ -90,12 +96,14 @@ local function promptForAddress()
         editingAddress = true,
         statusText = statusText,
         statusColor = statusColor,
+        canGoBack = view.canGoBack(browsing),
+        canGoForward = view.canGoForward(browsing),
     })
 
     local x, y = ui.addressInputPosition()
     term.setCursorPos(x, y)
-    term.setTextColor(colors.yellow)
-    term.setBackgroundColor(colors.blue)
+    term.setTextColor(colors.black)
+    term.setBackgroundColor(colors.white)
     term.setCursorBlink(true)
 
     -- Deliberately not prefilled with currentAddressText: CC:Tweaked's
@@ -121,6 +129,53 @@ local function promptForAddress()
     end
 
     loadTarget(target, true)
+end
+
+
+local function goBack()
+    local target = view.goBack(browsing, currentTarget)
+
+    if target then
+        loadTarget(target, false)
+    end
+end
+
+
+local function goForward()
+    local target = view.goForward(browsing, currentTarget)
+
+    if target then
+        loadTarget(target, false)
+    end
+end
+
+
+local function followLink(x, y)
+    local row = ui.contentRowAt(x, y)
+
+    if not row then
+        return
+    end
+
+    local line = view.lineAt(browsing, row)
+
+    if not line or line.kind ~= "link" or not currentTarget then
+        return
+    end
+
+    loadTarget(address.resolve(currentTarget, line.target), true)
+end
+
+
+-- Restores a normal shell prompt instead of leaving Lantern's chrome
+-- frozen on screen. Just returns -- cnetd is a separate daemon and
+-- keeps running exactly as it was regardless of what Lantern does.
+local function shutdown()
+    term.setBackgroundColor(colors.black)
+    term.setTextColor(colors.white)
+    term.clear()
+    term.setCursorPos(1, 1)
+    print("Lantern closed.")
 end
 
 
@@ -154,35 +209,47 @@ else
 end
 
 while true do
-    local event, param = os.pullEvent("key")
+    local event, a, b, c = os.pullEvent()
 
-    if param == keys.a then
-        promptForAddress()
+    if event == "mouse_click" then
+        local button, x, y = a, b, c
 
-    elseif param == keys.tab then
-        view.selectNextLink(browsing, ui.contentHeight())
-        redraw()
+        if button == 1 then
+            if ui.isCloseButton(x, y) then
+                shutdown()
+                return
 
-    elseif param == keys.enter then
-        local target = view.selectedTarget(browsing)
+            elseif ui.isAddressBar(x, y) then
+                promptForAddress()
 
-        if target and currentTarget then
-            loadTarget(address.resolve(currentTarget, target), true)
+            elseif ui.isBackButton(x, y) then
+                goBack()
+                redraw()
+
+            elseif ui.isForwardButton(x, y) then
+                goForward()
+                redraw()
+
+            else
+                followLink(x, y)
+            end
         end
 
-    elseif param == keys.up then
-        view.scroll(browsing, -1, ui.contentHeight())
+    elseif event == "mouse_scroll" then
+        local direction = a
+        view.scroll(browsing, direction, ui.contentHeight())
         redraw()
 
-    elseif param == keys.down then
-        view.scroll(browsing, 1, ui.contentHeight())
-        redraw()
+    elseif event == "key" then
+        local keyCode = a
 
-    elseif param == keys.backspace then
-        local target = view.popHistory(browsing)
+        if keyCode == keys.up then
+            view.scroll(browsing, -1, ui.contentHeight())
+            redraw()
 
-        if target then
-            loadTarget(target, false)
+        elseif keyCode == keys.down then
+            view.scroll(browsing, 1, ui.contentHeight())
+            redraw()
         end
     end
 end
